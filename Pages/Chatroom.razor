@@ -1,0 +1,108 @@
+﻿@page "/chat"
+@using ChatClient.Models
+@using ChatClient.Services.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@using Newtonsoft.Json
+@using System.Diagnostics
+<h3>Chatroom</h3>
+<div class="card">
+    <h4 class="card-header">Login</h4>
+    <div class="card-body">
+        <EditForm Model="@model">
+            <div class="form-group">
+                <label>Username</label>
+                <InputText @bind-Value="model.UserName" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label>Chatroom</label>
+                <InputText @bind-Value="model.Password" type="password" class="form-control" />
+            </div>
+            <button class="btn btn-primary" @onclick="loginClicked">
+            </button>
+            <NavLink href="" class="btn btn-link">Register</NavLink>
+        </EditForm>
+    </div>
+</div>
+@code {
+    private UserConnection model = new UserConnection();
+    private bool loading;
+    private List<ChatMessage> Messages;
+    ISignalRWrapper signalr;
+
+    async Task loginClicked()
+    {
+        DoJoinChatroom();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("START OF OnInitializedAsync");
+        Messages = new List<ChatMessage>();
+        signalr = new SignalRWrapper();
+        //await signalr.ConnectSignalRAsync();
+        Console.WriteLine("FINISH OF ConnectSignalRAsync");
+        StateHasChanged();
+
+        ((SignalRWrapper)signalr).Connection.On<string>("MessageReceived", (message) =>
+    {
+        var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
+        Messages.Add(msg);
+        Console.WriteLine(msg);
+    });
+
+        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveSpecificMessage", (message) =>
+        {
+            var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
+            Messages.Add(msg);
+            Console.WriteLine(msg);
+        });
+
+        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveMessage", async (message) =>
+        {
+            var msg = await HandleNewMessage(message);
+            Messages.Add(msg);
+            Console.WriteLine(message);
+        });
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task<ChatMessage> HandleNewMessage(string message)
+    {
+        ChatMessage chatMessage = null;
+        try
+        {
+            var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
+
+            switch (msg.Action)
+            {
+                case ChatMessageAction.ANNOUNCEMENTS:
+                    break;
+
+                case ChatMessageAction.HELLO:
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (message.Contains("joined", StringComparison.OrdinalIgnoreCase))
+                chatMessage = new ChatMessage
+                    {
+                        Action = ChatMessageAction.ANNOUNCEMENTS,
+                        Body = message,
+                        Type = ChatMessageType.TEXT
+                    };
+            else
+                Console.WriteLine(ex);
+        }
+
+        return chatMessage;
+    }
+
+    private async void DoJoinChatroom()
+    {
+        var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
+    }
+}
