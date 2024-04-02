@@ -15,38 +15,80 @@
             </div>
             <div class="form-group">
                 <label>Chatroom</label>
-                <InputText @bind-Value="model.Password" type="password" class="form-control" />
+                <InputText @bind-Value="model.ChatRoom" class="form-control" />
             </div>
-            <button class="btn btn-primary" @onclick="loginClicked">
-            </button>
-            <NavLink href="" class="btn btn-link">Register</NavLink>
+            <div class="form-group"></div>
+            <button class="btn btn-primary" @onclick="JoinSpecificChatRoom"> JoinSpecificChatRoom </button>
+            <button class="btn btn-primary" @onclick="JoinChat"> JoinChat </button>
         </EditForm>
+    </div>
+    <h3>Messages</h3>
+
+    <div class="form-group">
+        @if (Messages != null && Messages.Any())
+        {
+            <ul>
+                @foreach (var message in Messages)
+                {
+                    <li>
+                        <div><strong>From:</strong> @message.FromUser <strong>To:</strong> @message.ToUser</div>
+                        <div><strong>Type:</strong> @message.Type <strong>Action:</strong> @message.Action</div>
+                        <div><strong>Message:</strong> @message.Body</div>
+                        <div><strong>Date:</strong> @DateTime.Now</div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No messages found.</p>
+        }
+    </div>
+
+    <h3>Who is online</h3>
+
+    <div class="form-group">
+        @if (WhoIsOn != null && WhoIsOn.Any())
+        {
+            <ul>
+                @foreach (var userConnection in WhoIsOn)
+                {
+                    <li>
+                        <div><strong>Username</strong> @userConnection.UserName </div>
+                        <div><strong>Chatroom:</strong> @userConnection.ChatRoom</div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No messages found.</p>
+        }
     </div>
 </div>
 @code {
     private UserConnection model = new UserConnection();
     private bool loading;
     private List<ChatMessage> Messages;
+    private List<UserConnection> WhoIsOn;
     ISignalRWrapper signalr;
 
-    async Task loginClicked()
-    {
-        DoJoinChatroom();
-    }
     protected override async Task OnInitializedAsync()
     {
         Console.WriteLine("START OF OnInitializedAsync");
         Messages = new List<ChatMessage>();
+        WhoIsOn = new List<UserConnection>();
         signalr = new SignalRWrapper();
         //await signalr.ConnectSignalRAsync();
         Console.WriteLine("FINISH OF ConnectSignalRAsync");
-        StateHasChanged();
 
         ((SignalRWrapper)signalr).Connection.On<string>("MessageReceived", (message) =>
     {
         var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
         Messages.Add(msg);
         Console.WriteLine(msg);
+        StateHasChanged();
+
     });
 
         ((SignalRWrapper)signalr).Connection.On<string>("ReceiveSpecificMessage", (message) =>
@@ -54,6 +96,8 @@
             var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
             Messages.Add(msg);
             Console.WriteLine(msg);
+            StateHasChanged();
+
         });
 
         ((SignalRWrapper)signalr).Connection.On<string>("ReceiveMessage", async (message) =>
@@ -61,6 +105,7 @@
             var msg = await HandleNewMessage(message);
             Messages.Add(msg);
             Console.WriteLine(message);
+            StateHasChanged();
         });
 
         await base.OnInitializedAsync();
@@ -71,16 +116,18 @@
         ChatMessage chatMessage = null;
         try
         {
-            var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
+            chatMessage = JsonConvert.DeserializeObject<ChatMessage>(message);
 
-            switch (msg.Action)
+            switch (chatMessage.Action)
             {
                 case ChatMessageAction.ANNOUNCEMENTS:
                     break;
 
                 case ChatMessageAction.HELLO:
                     break;
-
+                case ChatMessageAction.WHOISON:
+                    WhoIsOn = JsonConvert.DeserializeObject<List<UserConnection>>(chatMessage.Body);
+                    break;
                 default:
                     break;
             }
@@ -92,7 +139,10 @@
                     {
                         Action = ChatMessageAction.ANNOUNCEMENTS,
                         Body = message,
-                        Type = ChatMessageType.TEXT
+                        Type = ChatMessageType.TEXT,
+                        FromUser = "Admin",
+                        ToUser = "You",
+
                     };
             else
                 Console.WriteLine(ex);
@@ -101,8 +151,14 @@
         return chatMessage;
     }
 
-    private async void DoJoinChatroom()
+    private async void JoinSpecificChatRoom()
     {
+        //var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
+        var res = await signalr.JoinSpecificChatRoomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
+    }
+    private async void JoinChat()
+    {
+        //var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
         var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
     }
 }

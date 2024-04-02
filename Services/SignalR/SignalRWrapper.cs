@@ -19,11 +19,9 @@ namespace ChatClient.Services.SignalR
             try
             {
                 await Connection.StartAsync();
-
             }
             catch (Exception ex)
             {
-
                 Console.WriteLine(ex);
             }
         }
@@ -36,6 +34,25 @@ namespace ChatClient.Services.SignalR
                 string result = string.Empty;
                 if (Connection.State == HubConnectionState.Connected)
                     result = await Connection.InvokeCoreAsync<string>("JoinChat", new object[] { connection });
+                else if (Connection.State == HubConnectionState.Disconnected)
+                    await Connection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("EXCEPTION HAPPENED ON JoinChatroomAsync " + ex);
+            }
+
+            return res;
+        }
+
+        public async Task<string> JoinSpecificChatRoomAsync(UserConnection connection)
+        {
+            var res = string.Empty;
+            try
+            {
+                string result = string.Empty;
+                if (Connection.State == HubConnectionState.Connected)
+                    result = await Connection.InvokeCoreAsync<string>("JoinSpecificChatRoom", new object[] { connection });
                 else if (Connection.State == HubConnectionState.Disconnected)
                     await Connection.StartAsync();
             }

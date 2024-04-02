@@ -12,6 +12,7 @@
     {
         ANNOUNCEMENTS,
         HELLO,
+        WHOISON
     }
 
     public class ChatMessage

@@ -7,5 +7,7 @@ namespace ChatClient.Services.SignalR
         public Task ConnectSignalRAsync();
 
         public Task<string> JoinChatroomAsync(UserConnection connection);
+
+        public Task<string> JoinSpecificChatRoomAsync(UserConnection connection);
     }
 }
