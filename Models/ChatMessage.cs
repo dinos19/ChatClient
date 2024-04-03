@@ -20,7 +20,7 @@
         public ChatMessageAction Action { get; set; }
         public ChatMessageType Type { get; set; }
         public string Body { get; set; }
-        public string FromUser { get; set; }
-        public string ToUser { get; set; }
+        public int FromAccountId { get; set; }
+        public int ToAccountId { get; set; }
     }
 }

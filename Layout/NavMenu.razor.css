@@ -80,4 +80,10 @@
         height: calc(100vh - 3.5rem);
         overflow-y: auto;
     }
+
+        .nav-scrollable .nav-group {
+            max-height: 150px; /* This value controls when the scrolling starts */
+            overflow-y: auto; /* Enables vertical scrolling */
+            overflow-x: hidden; /* Prevents horizontal scrolling */
+        }
 }

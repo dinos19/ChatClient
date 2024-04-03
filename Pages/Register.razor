@@ -1,0 +1,120 @@
+﻿@page "/register"
+<h3>Register</h3>
+
+@using System.ComponentModel.DataAnnotations
+@using ChatClient.Models
+@using System.Text.Json
+@using System.Text
+
+<EditForm Model="@account">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="name">Name</label>
+        <InputText id="username" class="form-control" @bind-Value="account.Name" />
+        <ValidationMessage For="@(() => account.Name)" />
+    </div>
+
+    <div class="form-group">
+        <label for="email">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="account.Email" InputType="InputType.Email" />
+        <ValidationMessage For="@(() => account.Email)" />
+    </div>
+
+    <div class="form-group">
+        <label for="password">Password</label>
+        <InputText @bind-Value="account.Password" type="password" class="form-control" />
+        <ValidationMessage For="@(() => account.Password)" />
+    </div>
+
+    <button type="Register" class="btn btn-primary" @onclick="HandleRegistration">Register</button>
+    <button type="Login" class="btn btn-primary" @onclick="HandleLogin">Login</button>
+
+</EditForm>
+
+@code {
+    private Account account = new Account();
+    private string response = string.Empty;
+    private async Task HandleRegistration()
+    {
+        await RegisterAccountAsync();
+        Console.WriteLine("Registration successful!");
+    }
+    private async Task HandleLogin()
+    {
+        await LoginAsync();
+    }
+    public async Task<Account> RegisterAccountAsync()
+    {
+        Account responseAccount = new();
+        var httpClient = new HttpClient();
+        var accountJson = JsonSerializer.Serialize(account);
+        var content = new StringContent(accountJson, Encoding.UTF8, "application/json");
+
+        try
+        {
+            HttpResponseMessage response = await httpClient.PostAsync("https://localhost:44312/Account/Register", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Read the response body as a string
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                // Deserialize the response body string back to an Account object
+                responseAccount = JsonSerializer.Deserialize<Account>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                Console.WriteLine($"Account registered successfully. ID: {responseAccount?.AccountId}");
+            }
+            else
+            {
+                Console.WriteLine($"Failed to register account. Status code: {response.StatusCode}");
+            }
+
+            return responseAccount;
+        }
+        catch (HttpRequestException e)
+        {
+            Console.WriteLine($"Request error: {e.Message}");
+            return responseAccount;
+        }
+    }
+
+    public async Task<bool> LoginAsync()
+    {
+        bool isLogedIn = false;
+        var httpClient = new HttpClient();
+        var accountJson = JsonSerializer.Serialize(account);
+        var content = new StringContent(accountJson, Encoding.UTF8, "application/json");
+
+        try
+        {
+            HttpResponseMessage response = await httpClient.PostAsync("https://localhost:44312/Account/Login", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Read the response body as a string
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                // Deserialize the response body string back to an Account object
+                isLogedIn = JsonSerializer.Deserialize<bool>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (isLogedIn)
+                Console.WriteLine($"Login successfull. ID: {account?.AccountId}");
+                else
+                    Console.WriteLine($"Login NOT successfull. ID: {account?.AccountId}");
+
+            }
+            else
+            {
+                Console.WriteLine($"Failed to Login. Status code: {response.StatusCode}");
+            }
+
+            return isLogedIn;
+        }
+        catch (HttpRequestException e)
+        {
+            Console.WriteLine($"Request error: {e.Message}");
+            return isLogedIn;
+        }
+    }
+}

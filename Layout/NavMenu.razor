@@ -1,4 +1,5 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using ChatClient.Models
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">ChatClient</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -9,6 +10,11 @@
 
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="register" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Register
+            </NavLink>
+        </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
@@ -29,6 +35,33 @@
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Chatroom
             </NavLink>
         </div>
+
+        @* Adjusted NavMenu component *@
+
+        <div class="@NavMenuCssClass nav-scrollable">
+            <nav class="flex-column">
+                @foreach (var group in linkGroups)
+                {
+                    <div @onclick="() => ToggleGroup(group)" class="nav-item px-3">
+                        <span class="nav-link">@group.Name <span class="@GetGroupIconClass(group)"></span></span>
+                    </div>
+                    @if (group.IsExpanded)
+                    {
+                        <div class="nav-group">
+                            <!-- This is the scrollable container for each group -->
+                            @foreach (var link in group.Links)
+                            {
+                                <div class="nav-item px-3" style="margin-left:15px;" @onclick:stopPropagation="true">
+                                    <NavLink class="nav-link" href="@link.Url">
+                                        <span class="@link.Icon" aria-hidden="true"></span> @link.DisplayName
+                                    </NavLink>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </nav>
+        </div>
     </nav>
 </div>
 
@@ -41,4 +74,38 @@
     {
         collapseNavMenu = !collapseNavMenu;
     }
+
+    private List<LinkGroup> linkGroups = new List<LinkGroup>
+    {
+        new LinkGroup
+        {
+            Name = "Connections",
+            IsExpanded = false,
+            Links = new List<LinkItem>
+            {
+                new LinkItem { DisplayName = "Home", Url = "/", Icon = "bi bi-house-door-fill-nav-menu" },
+                new LinkItem { DisplayName = "Register", Url = "register", Icon = "bi bi-person-fill-nav-menu" }
+            }
+        },
+        new LinkGroup
+        {
+            Name = "Messages",
+            IsExpanded = false,
+            Links = new List<LinkItem>
+            {
+                new LinkItem { DisplayName = "Counter", Url = "counter", Icon = "bi bi-plus-square-fill-nav-menu" },
+                new LinkItem { DisplayName = "Weather", Url = "weather", Icon = "bi bi-cloud-sun-fill-nav-menu" },
+                new LinkItem { DisplayName = "Chatroom", Url = "chat", Icon = "bi bi-chat-dots-fill-nav-menu" }
+            }
+        }
+    };
+
+    private void ToggleGroup(LinkGroup group)
+    {
+        group.IsExpanded = !group.IsExpanded;
+    }
+
+    private string GetGroupIconClass(LinkGroup group)
+        => group.IsExpanded ? "bi bi-chevron-up" : "bi bi-chevron-down";
+
 }

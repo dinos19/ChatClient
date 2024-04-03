@@ -4,6 +4,8 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
 @using System.Diagnostics
+@inject NavigationManager NavigationManager
+
 <h3>Chatroom</h3>
 <div class="card">
     <h4 class="card-header">Login</h4>
@@ -31,7 +33,7 @@
                 @foreach (var message in Messages)
                 {
                     <li>
-                        <div><strong>From:</strong> @message.FromUser <strong>To:</strong> @message.ToUser</div>
+                        <div><strong>From:</strong> @message.FromAccountId <strong>To:</strong> @message.ToAccountId</div>
                         <div><strong>Type:</strong> @message.Type <strong>Action:</strong> @message.Action</div>
                         <div><strong>Message:</strong> @message.Body</div>
                         <div><strong>Date:</strong> @DateTime.Now</div>
@@ -140,8 +142,8 @@
                         Action = ChatMessageAction.ANNOUNCEMENTS,
                         Body = message,
                         Type = ChatMessageType.TEXT,
-                        FromUser = "Admin",
-                        ToUser = "You",
+                        FromAccountId = 1,
+                        ToAccountId = 0,
 
                     };
             else
