@@ -80,9 +80,9 @@
         }
     }
 
-    public async Task<bool> LoginAsync()
+    public async Task<LoginResponse> LoginAsync()
     {
-        bool isLogedIn = false;
+        LoginResponse loginResponse = null;
         var httpClient = new HttpClient();
         var accountJson = JsonSerializer.Serialize(account);
         var content = new StringContent(accountJson, Encoding.UTF8, "application/json");
@@ -97,11 +97,11 @@
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 // Deserialize the response body string back to an Account object
-                isLogedIn = JsonSerializer.Deserialize<bool>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (isLogedIn)
-                Console.WriteLine($"Login successfull. ID: {account?.AccountId}");
+                loginResponse = JsonSerializer.Deserialize<LoginResponse>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (loginResponse.IsLoggedIn)
+                    Console.WriteLine($"Login successfull.  {JsonSerializer.Serialize(loginResponse)}");
                 else
-                    Console.WriteLine($"Login NOT successfull. ID: {account?.AccountId}");
+                    Console.WriteLine("Login NOT successfull.");
 
             }
             else
@@ -109,12 +109,12 @@
                 Console.WriteLine($"Failed to Login. Status code: {response.StatusCode}");
             }
 
-            return isLogedIn;
+            return loginResponse;
         }
         catch (HttpRequestException e)
         {
             Console.WriteLine($"Request error: {e.Message}");
-            return isLogedIn;
+            return loginResponse;
         }
     }
 }

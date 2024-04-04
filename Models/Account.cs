@@ -11,5 +11,6 @@ namespace ChatClient.Models
         public string Email { get; set; }
         public int GroupId { get; set; }
         public bool IsFriend { get; set; }
+        public bool IsOnline { get; set; }
     }
 }
