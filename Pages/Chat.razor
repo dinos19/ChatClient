@@ -1,0 +1,66 @@
+﻿@page "/chat"
+@using ChatClient.Models
+@using ChatClient.Services.ViewServices
+@inject ChatService ChatService
+@inject UserState UserState
+<h3>Chat</h3>
+
+@if (Messages == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="chat-wrapper">
+        <div class="message-list">
+            @foreach (var message in Messages)
+            {
+                <div class="message">
+                    <div class="message-header">
+                        <span class="message-sender">test name 1</span>
+                        <!-- Include more header details if needed -->
+                    </div>
+                    <div class="message-content">
+                        @message.Body
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="chat-input">
+            <input type="text" @bind="newMessageText" placeholder="Type a message..." />
+            <button @onclick="SendMessage">Send</button>
+        </div>
+    </div>
+}
+
+@code {
+    public List<ChatMessage> Messages = new List<ChatMessage>();
+    private string newMessageText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // for (int i = 0; i <= 30; i++)
+        // {
+        //     Messages.Add(new ChatMessage
+        //         {
+        //             Action = ChatMessageAction.ANNOUNCEMENTS,
+        //             Body = $"Test message {i}",
+        //             FromAccount = new Account
+        //             {
+        //                 AccountId = i,
+        //                 Email = $"test{i}@test.com",
+        //                 IsOnline = true,
+        //                 IsFriend = false,
+        //                 Name = $"test {i}",
+        //                 GroupId = 5
+        //             }
+        //         });
+        // }
+        Messages = await ChatService.LoadSingleChatroom(1, 0);
+        await base.OnInitializedAsync();
+    }
+    private void SendMessage()
+    {
+
+    }
+}

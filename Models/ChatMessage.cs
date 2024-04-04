@@ -1,4 +1,7 @@
-﻿namespace ChatClient.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace ChatClient.Models
 {
     public enum ChatMessageType : int
     {
@@ -15,12 +18,19 @@
         WHOISON
     }
 
+    [Table("ChatMessage")]
     public class ChatMessage
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int ChatMessageId { get; set; }
+
         public ChatMessageAction Action { get; set; }
         public ChatMessageType Type { get; set; }
         public string Body { get; set; }
+
         public int FromAccountId { get; set; }
+
         public int ToAccountId { get; set; }
     }
 }

@@ -1,10 +1,16 @@
-﻿@page "/register"
+﻿@page "/"
+@inject NavigationManager NavigationManager
+@inject ISqliteWasmDbContextFactory<ClientDbContext> dbContext
+@inject UserState UserState
+
 <h3>Register</h3>
 
 @using System.ComponentModel.DataAnnotations
+@using ChatClient.Infrastructure
 @using ChatClient.Models
 @using System.Text.Json
 @using System.Text
+@using SqliteWasmHelper
 
 <EditForm Model="@account">
     <DataAnnotationsValidator />
@@ -36,6 +42,10 @@
 @code {
     private Account account = new Account();
     private string response = string.Empty;
+
+    protected override void OnInitialized()
+    {
+    }
     private async Task HandleRegistration()
     {
         await RegisterAccountAsync();
@@ -63,8 +73,9 @@
 
                 // Deserialize the response body string back to an Account object
                 responseAccount = JsonSerializer.Deserialize<Account>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
                 Console.WriteLine($"Account registered successfully. ID: {responseAccount?.AccountId}");
+                NavigationManager.NavigateTo("/home", false);
+
             }
             else
             {
@@ -98,8 +109,25 @@
 
                 // Deserialize the response body string back to an Account object
                 loginResponse = JsonSerializer.Deserialize<LoginResponse>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
                 if (loginResponse.IsLoggedIn)
+                {
+                    try
+                    {
+                        using var ctx = await dbContext.CreateDbContextAsync();
+                        await ctx.Accounts.AddRangeAsync(loginResponse.OnlineAccounts);
+                        await ctx.SaveChangesAsync();
+
+                    }
+                    catch (Exception ex)
+                    {
+                        //Console.WriteLine(ex);
+                    }
+                    UserState.Accounts = loginResponse.OnlineAccounts;
+
                     Console.WriteLine($"Login successfull.  {JsonSerializer.Serialize(loginResponse)}");
+                    NavigationManager.NavigateTo("/home", false);
+                }
                 else
                     Console.WriteLine("Login NOT successfull.");
 

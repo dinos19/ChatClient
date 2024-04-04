@@ -1,4 +1,8 @@
 ﻿@using ChatClient.Models
+@using Newtonsoft.Json
+@inject UserState UserState
+@inject NavigationManager NavigationManager
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">ChatClient</a>
@@ -11,12 +15,12 @@
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="register" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Register
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="home" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
@@ -31,41 +35,52 @@
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="chat">
+            <NavLink class="nav-link" href="chatroom">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Chatroom
             </NavLink>
         </div>
-
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="chat">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Chat
+            </NavLink>
+        </div>
         @* Adjusted NavMenu component *@
 
-        <div class="@NavMenuCssClass nav-scrollable">
-            <nav class="flex-column">
-                @foreach (var group in linkGroups)
-                {
-                    <div @onclick="() => ToggleGroup(group)" class="nav-item px-3">
-                        <span class="nav-link">@group.Name <span class="@GetGroupIconClass(group)"></span></span>
-                    </div>
-                    @if (group.IsExpanded)
+        @foreach (var group in linkGroups)
+        {
+            <div @onclick="() => ToggleGroup(group)" class="nav-item px-3">
+                <span class="nav-link">@group.Name <span class="@GetGroupIconClass(group)"></span></span>
+            </div>
+            @if (group.IsExpanded)
+            {
+                <div class="nav-group">
+                    <!-- This is the scrollable container for each group -->
+                    @if (UserState.Accounts.Any())
                     {
-                        <div class="nav-group">
-                            <!-- This is the scrollable container for each group -->
-                            @foreach (var link in group.Links)
-                            {
-                                <div class="nav-item px-3" style="margin-left:15px;" @onclick:stopPropagation="true">
-                                    <NavLink class="nav-link" href="@link.Url">
-                                        <span class="@link.Icon" aria-hidden="true"></span> @link.DisplayName
-                                    </NavLink>
-                                </div>
-                            }
-                        </div>
+                        @foreach (var account in UserState.Accounts)
+                        {
+                            <div class="nav-item px-3" style="margin-left:15px;" @onclick:stopPropagation="true" @onclick="() => ChatClicked(account)">
+                                <NavLink class="nav-link" href="javascript:void(0)">
+                                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> @account.Name
+                                </NavLink>
+                            </div>
+                        }
                     }
-                }
-            </nav>
-        </div>
+                </div>
+            }
+        }
     </nav>
 </div>
 
 @code {
+
+    public async Task ChatClicked(Account account)
+    {
+        UserState.PreviousChatroom = UserState.CurrentChatroom;
+        UserState.CurrentChatroom = account;
+        NavigationManager.NavigateTo("/chat", false);
+
+    }
     private bool collapseNavMenu = true;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
@@ -102,6 +117,12 @@
 
     private void ToggleGroup(LinkGroup group)
     {
+
+        StateHasChanged();
+        foreach (var item in UserState.Accounts)
+        {
+            Console.WriteLine(JsonConvert.SerializeObject(item));
+        }
         group.IsExpanded = !group.IsExpanded;
     }
 
