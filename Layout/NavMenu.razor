@@ -73,12 +73,15 @@
 </div>
 
 @code {
+    public NavMenu()
+    {
 
+    }
     public async Task ChatClicked(Account account)
     {
         UserState.PreviousChatroom = UserState.CurrentChatroom;
         UserState.CurrentChatroom = account;
-        NavigationManager.NavigateTo("/chat", false);
+        NavigationManager.NavigateTo($"/chat/{account.AccountId}", false);
 
     }
     private bool collapseNavMenu = true;

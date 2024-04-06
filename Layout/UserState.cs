@@ -14,5 +14,6 @@ namespace ChatClient.Layout
         public Account MyAccount { get; set; }
         public Account CurrentChatroom { get; set; }
         public Account PreviousChatroom { get; set; }
+        public UserConnection CurrentChatConnection { get; set; }
     }
 }

@@ -63,5 +63,15 @@ namespace ChatClient.Services.SignalR
 
             return res;
         }
+
+        public async Task<UserConnection> SayHello(Account account)
+        {
+            return await Connection.InvokeCoreAsync<UserConnection>("SayHello", new object[] { account });
+        }
+
+        public async Task<ChatMessage> SendMessage(ChatMessage chatMessage)
+        {
+            return await Connection.InvokeCoreAsync<ChatMessage>("SendMessage", new object[] { chatMessage });
+        }
     }
 }

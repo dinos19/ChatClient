@@ -55,9 +55,9 @@
     {
         await LoginAsync();
     }
-    public async Task<Account> RegisterAccountAsync()
+    public async Task<List<Account>> RegisterAccountAsync()
     {
-        Account responseAccount = new();
+        List<Account> responseAccounts = new();
         var httpClient = new HttpClient();
         var accountJson = JsonSerializer.Serialize(account);
         var content = new StringContent(accountJson, Encoding.UTF8, "application/json");
@@ -72,8 +72,10 @@
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 // Deserialize the response body string back to an Account object
-                responseAccount = JsonSerializer.Deserialize<Account>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                Console.WriteLine($"Account registered successfully. ID: {responseAccount?.AccountId}");
+                responseAccounts = JsonSerializer.Deserialize<List<Account>>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                Console.WriteLine($"Account registered successfully. ID: {account?.AccountId}");
+                UserState.MyAccount = account;
+                UserState.MyAccount.AccountId = responseAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
                 NavigationManager.NavigateTo("/home", false);
 
             }
@@ -82,12 +84,12 @@
                 Console.WriteLine($"Failed to register account. Status code: {response.StatusCode}");
             }
 
-            return responseAccount;
+            return responseAccounts;
         }
         catch (HttpRequestException e)
         {
             Console.WriteLine($"Request error: {e.Message}");
-            return responseAccount;
+            return responseAccounts;
         }
     }
 
@@ -124,6 +126,8 @@
                         //Console.WriteLine(ex);
                     }
                     UserState.Accounts = loginResponse.OnlineAccounts;
+                    UserState.MyAccount = account;
+                    UserState.MyAccount.AccountId = loginResponse.OnlineAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
 
                     Console.WriteLine($"Login successfull.  {JsonSerializer.Serialize(loginResponse)}");
                     NavigationManager.NavigateTo("/home", false);

@@ -1,8 +1,15 @@
-﻿@page "/chat"
+﻿@page "/chat/{CurrentChatroomAccountId}"
+@using ChatClient.Infrastructure
 @using ChatClient.Models
+@using ChatClient.Services.SignalR
 @using ChatClient.Services.ViewServices
+@using Microsoft.AspNetCore.SignalR.Client
+@using Newtonsoft.Json
+@using SqliteWasmHelper
 @inject ChatService ChatService
 @inject UserState UserState
+@inject ISqliteWasmDbContextFactory<ClientDbContext> dbContext
+
 <h3>Chat</h3>
 
 @if (Messages == null)
@@ -17,8 +24,7 @@ else
             {
                 <div class="message">
                     <div class="message-header">
-                        <span class="message-sender">test name 1</span>
-                        <!-- Include more header details if needed -->
+                        <span class="message-sender">@message.FromAccount.Name</span>
                     </div>
                     <div class="message-content">
                         @message.Body
@@ -34,33 +40,130 @@ else
 }
 
 @code {
+    [Parameter]
+    public string CurrentChatroomAccountId { get; set; }
     public List<ChatMessage> Messages = new List<ChatMessage>();
     private string newMessageText;
+    ISignalRWrapper signalr;
 
     protected override async Task OnInitializedAsync()
     {
-        // for (int i = 0; i <= 30; i++)
-        // {
-        //     Messages.Add(new ChatMessage
-        //         {
-        //             Action = ChatMessageAction.ANNOUNCEMENTS,
-        //             Body = $"Test message {i}",
-        //             FromAccount = new Account
-        //             {
-        //                 AccountId = i,
-        //                 Email = $"test{i}@test.com",
-        //                 IsOnline = true,
-        //                 IsFriend = false,
-        //                 Name = $"test {i}",
-        //                 GroupId = 5
-        //             }
-        //         });
-        // }
-        Messages = await ChatService.LoadSingleChatroom(1, 0);
+        signalr = new SignalRWrapper();
+        await signalr.ConnectSignalRAsync();
+
+        ((SignalRWrapper)signalr).Connection.On<string>("MessageReceived", (message) =>
+           {
+               var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
+               Messages.Add(msg);
+               Console.WriteLine(msg);
+               StateHasChanged();
+
+           });
+
+        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveSpecificMessage", (message) =>
+        {
+            var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
+            Messages.Add(msg);
+            Console.WriteLine(msg);
+            StateHasChanged();
+
+        });
+
+        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveMessage", async (message) =>
+        {
+            var msg = await HandleNewMessage(message);
+            if (msg.Action == ChatMessageAction.NOACTION)
+                Messages.Add(msg);
+            StateHasChanged();
+            Console.WriteLine(message);
+        });
+
         await base.OnInitializedAsync();
     }
-    private void SendMessage()
+    private async Task<ChatMessage> HandleNewMessage(string message)
+    {
+        ChatMessage chatMessage = null;
+        try
+        {
+            chatMessage = JsonConvert.DeserializeObject<ChatMessage>(message);
+
+            switch (chatMessage.Action)
+            {
+                case ChatMessageAction.NOACTION:
+                    try
+                    {
+                        using var ctx = await dbContext.CreateDbContextAsync();
+                        await ctx.ChatMessages.AddAsync(chatMessage);
+                        await ctx.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        //Console.WriteLine(ex);
+                    }
+                    chatMessage.FromAccount = UserState.CurrentChatroom;
+                    chatMessage.ToAccount = UserState.MyAccount;
+
+                    break;
+                case ChatMessageAction.ANNOUNCEMENTS:
+                    break;
+
+                case ChatMessageAction.HELLO:
+                    UserState.CurrentChatConnection = await signalr.SayHello(UserState.MyAccount);
+                    await signalr.JoinSpecificChatRoomAsync(UserState.CurrentChatConnection);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (message.Contains("joined", StringComparison.OrdinalIgnoreCase))
+                chatMessage = new ChatMessage
+                    {
+                        Action = ChatMessageAction.ANNOUNCEMENTS,
+                        Body = message,
+                        Type = ChatMessageType.TEXT,
+                        FromAccountId = 1,
+                        ToAccountId = 0,
+
+                    };
+            else
+                Console.WriteLine(ex);
+        }
+
+        return chatMessage;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        Messages = await ChatService.LoadSingleChatroom(UserState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
+
+    }
+    private async void SendMessage()
     {
 
+        ChatMessage chatMessage = new ChatMessage
+            {
+                Action = ChatMessageAction.NOACTION,
+                Body = newMessageText,
+                FromAccountId = UserState.MyAccount.AccountId,
+                ToAccountId = UserState.CurrentChatroom.AccountId,
+                Type = ChatMessageType.TEXT
+            };
+        try
+        {
+            await signalr.SendMessage(chatMessage);
+            chatMessage.FromAccount = UserState.MyAccount;
+            chatMessage.ToAccount = UserState.CurrentChatroom;
+            Messages.Add(chatMessage);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+
+        }
     }
 }
