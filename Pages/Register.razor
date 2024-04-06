@@ -1,7 +1,8 @@
 ﻿@page "/"
 @inject NavigationManager NavigationManager
 @inject ISqliteWasmDbContextFactory<ClientDbContext> dbContext
-@inject UserState UserState
+@inject UserStateService UserStateService
+@implements IDisposable
 
 <h3>Register</h3>
 
@@ -10,6 +11,7 @@
 @using ChatClient.Models
 @using System.Text.Json
 @using System.Text
+@using ChatClient.Services
 @using SqliteWasmHelper
 
 <EditForm Model="@account">
@@ -74,8 +76,8 @@
                 // Deserialize the response body string back to an Account object
                 responseAccounts = JsonSerializer.Deserialize<List<Account>>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 Console.WriteLine($"Account registered successfully. ID: {account?.AccountId}");
-                UserState.MyAccount = account;
-                UserState.MyAccount.AccountId = responseAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
+                UserStateService.CurrentState.MyAccount = account;
+                UserStateService.CurrentState.MyAccount.AccountId = responseAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
                 NavigationManager.NavigateTo("/home", false);
 
             }
@@ -125,9 +127,9 @@
                     {
                         //Console.WriteLine(ex);
                     }
-                    UserState.Accounts = loginResponse.OnlineAccounts;
-                    UserState.MyAccount = account;
-                    UserState.MyAccount.AccountId = loginResponse.OnlineAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
+                    await UserStateService.AddAccounts(loginResponse.OnlineAccounts);
+                    await UserStateService.SetMyAccount(account);
+                    UserStateService.CurrentState.MyAccount.AccountId = loginResponse.OnlineAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
 
                     Console.WriteLine($"Login successfull.  {JsonSerializer.Serialize(loginResponse)}");
                     NavigationManager.NavigateTo("/home", false);
@@ -148,5 +150,15 @@
             Console.WriteLine($"Request error: {e.Message}");
             return loginResponse;
         }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await UserStateService.InitializeAsync();
+        UserStateService.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        UserStateService.OnChange -= StateHasChanged;
     }
 }

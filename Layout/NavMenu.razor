@@ -1,6 +1,8 @@
 ﻿@using ChatClient.Models
+@using ChatClient.Services
 @using Newtonsoft.Json
-@inject UserState UserState
+@inject UserStateService UserStateService
+@implements IDisposable
 @inject NavigationManager NavigationManager
 
 <div class="top-row ps-3 navbar navbar-dark">
@@ -55,9 +57,9 @@
             {
                 <div class="nav-group">
                     <!-- This is the scrollable container for each group -->
-                    @if (UserState.Accounts.Any())
+                    @if (UserStateService.CurrentState.Accounts.Any())
                     {
-                        @foreach (var account in UserState.Accounts)
+                        @foreach (var account in UserStateService.CurrentState.Accounts)
                         {
                             <div class="nav-item px-3" style="margin-left:15px;" @onclick:stopPropagation="true" @onclick="() => ChatClicked(account)">
                                 <NavLink class="nav-link" href="javascript:void(0)">
@@ -79,8 +81,8 @@
     }
     public async Task ChatClicked(Account account)
     {
-        UserState.PreviousChatroom = UserState.CurrentChatroom;
-        UserState.CurrentChatroom = account;
+
+        await UserStateService.SetCurrentChatroom(UserStateService.CurrentState.CurrentChatroom);
         NavigationManager.NavigateTo($"/chat/{account.AccountId}", false);
 
     }
@@ -122,7 +124,7 @@
     {
 
         StateHasChanged();
-        foreach (var item in UserState.Accounts)
+        foreach (var item in UserStateService.CurrentState.Accounts)
         {
             Console.WriteLine(JsonConvert.SerializeObject(item));
         }
@@ -131,5 +133,14 @@
 
     private string GetGroupIconClass(LinkGroup group)
         => group.IsExpanded ? "bi bi-chevron-up" : "bi bi-chevron-down";
+    protected override async Task OnInitializedAsync()
+    {
+        await UserStateService.InitializeAsync();
+        UserStateService.OnChange += StateHasChanged;
+    }
 
+    public void Dispose()
+    {
+        UserStateService.OnChange -= StateHasChanged;
+    }
 }

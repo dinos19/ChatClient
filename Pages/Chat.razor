@@ -1,13 +1,15 @@
 ﻿@page "/chat/{CurrentChatroomAccountId}"
 @using ChatClient.Infrastructure
 @using ChatClient.Models
+@using ChatClient.Services
 @using ChatClient.Services.SignalR
 @using ChatClient.Services.ViewServices
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
 @using SqliteWasmHelper
 @inject ChatService ChatService
-@inject UserState UserState
+@inject UserStateService UserStateService
+@implements IDisposable
 @inject ISqliteWasmDbContextFactory<ClientDbContext> dbContext
 
 <h3>Chat</h3>
@@ -48,6 +50,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await UserStateService.InitializeAsync();
+        UserStateService.OnChange += StateHasChanged;
+
         signalr = new SignalRWrapper();
         await signalr.ConnectSignalRAsync();
 
@@ -100,16 +105,16 @@ else
                     {
                         //Console.WriteLine(ex);
                     }
-                    chatMessage.FromAccount = UserState.CurrentChatroom;
-                    chatMessage.ToAccount = UserState.MyAccount;
+                    chatMessage.FromAccount = UserStateService.CurrentState.CurrentChatroom;
+                    chatMessage.ToAccount = UserStateService.CurrentState.MyAccount;
 
                     break;
                 case ChatMessageAction.ANNOUNCEMENTS:
                     break;
 
                 case ChatMessageAction.HELLO:
-                    UserState.CurrentChatConnection = await signalr.SayHello(UserState.MyAccount);
-                    await signalr.JoinSpecificChatRoomAsync(UserState.CurrentChatConnection);
+                    UserStateService.CurrentState.CurrentChatConnection = await signalr.SayHello(UserStateService.CurrentState.MyAccount);
+                    await signalr.JoinSpecificChatRoomAsync(UserStateService.CurrentState.CurrentChatConnection);
                     break;
 
                 default:
@@ -139,7 +144,7 @@ else
     {
         await base.OnParametersSetAsync();
 
-        Messages = await ChatService.LoadSingleChatroom(UserState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
+        Messages = await ChatService.LoadSingleChatroom(UserStateService.CurrentState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
 
     }
     private async void SendMessage()
@@ -149,15 +154,15 @@ else
             {
                 Action = ChatMessageAction.NOACTION,
                 Body = newMessageText,
-                FromAccountId = UserState.MyAccount.AccountId,
-                ToAccountId = UserState.CurrentChatroom.AccountId,
+                FromAccountId = UserStateService.CurrentState.MyAccount.AccountId,
+                ToAccountId = UserStateService.CurrentState.CurrentChatroom.AccountId,
                 Type = ChatMessageType.TEXT
             };
         try
         {
             await signalr.SendMessage(chatMessage);
-            chatMessage.FromAccount = UserState.MyAccount;
-            chatMessage.ToAccount = UserState.CurrentChatroom;
+            chatMessage.FromAccount = UserStateService.CurrentState.MyAccount;
+            chatMessage.ToAccount = UserStateService.CurrentState.CurrentChatroom;
             Messages.Add(chatMessage);
             StateHasChanged();
         }
@@ -165,5 +170,10 @@ else
         {
 
         }
+    }
+
+    public void Dispose()
+    {
+        UserStateService.OnChange -= StateHasChanged;
     }
 }
