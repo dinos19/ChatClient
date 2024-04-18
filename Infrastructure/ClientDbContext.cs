@@ -12,5 +12,6 @@ namespace ChatClient.Infrastructure
         public DbSet<Account> Accounts { get; set; }
         public DbSet<UserConnection> UserConnections { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<LatestUpdates> LatestUpdates { get; set; }
     }
 }

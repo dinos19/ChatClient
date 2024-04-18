@@ -25,4 +25,10 @@
     <Folder Include="Pages\SidePages\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="wwwroot\js\scripts.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -1,5 +1,7 @@
 ﻿@page "/home"
+@using ChatClient.Services.SignalR.Hubs
 @inject NavigationManager NavigationManager
+@inject SyncHub SyncHub
 
 <PageTitle>Home</PageTitle>
 
@@ -13,5 +15,12 @@ Welcome to your new app.
     {
         base.OnInitialized();
         //NavigationManager.NavigateTo("/register", true);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SyncHub.ConnectHubAsync();
+
+        base.OnInitializedAsync();
     }
 }

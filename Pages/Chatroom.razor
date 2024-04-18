@@ -1,9 +1,9 @@
 ﻿@page "/chatroom"
 @using ChatClient.Models
 @using ChatClient.Services.SignalR
+@using ChatClient.Services.SignalR.Hubs
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
-@using System.Diagnostics
 @inject NavigationManager NavigationManager
 
 <h3>Chatroom</h3>
@@ -73,18 +73,18 @@
     private bool loading;
     private List<ChatMessage> Messages;
     private List<UserConnection> WhoIsOn;
-    ISignalRWrapper signalr;
+    ChatHub signalr;
 
     protected override async Task OnInitializedAsync()
     {
         Console.WriteLine("START OF OnInitializedAsync");
         Messages = new List<ChatMessage>();
         WhoIsOn = new List<UserConnection>();
-        signalr = new SignalRWrapper();
+        signalr = new ChatHub();
         //await signalr.ConnectSignalRAsync();
         Console.WriteLine("FINISH OF ConnectSignalRAsync");
 
-        ((SignalRWrapper)signalr).Connection.On<string>("MessageReceived", (message) =>
+        signalr.Connection.On<string>("MessageReceived", (message) =>
     {
         var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
         Messages.Add(msg);
@@ -93,7 +93,7 @@
 
     });
 
-        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveSpecificMessage", (message) =>
+        signalr.Connection.On<string>("ReceiveSpecificMessage", (message) =>
         {
             var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
             Messages.Add(msg);
@@ -102,7 +102,7 @@
 
         });
 
-        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveMessage", async (message) =>
+        signalr.Connection.On<string>("ReceiveMessage", async (message) =>
         {
             var msg = await HandleNewMessage(message);
             Messages.Add(msg);
@@ -136,18 +136,8 @@
         }
         catch (Exception ex)
         {
-            if (message.Contains("joined", StringComparison.OrdinalIgnoreCase))
-                chatMessage = new ChatMessage
-                    {
-                        Action = ChatMessageAction.ANNOUNCEMENTS,
-                        Body = message,
-                        Type = ChatMessageType.TEXT,
-                        FromAccountId = 1,
-                        ToAccountId = 0,
 
-                    };
-            else
-                Console.WriteLine(ex);
+            Console.WriteLine(ex);
         }
 
         return chatMessage;
@@ -156,11 +146,11 @@
     private async void JoinSpecificChatRoom()
     {
         //var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
-        var res = await signalr.JoinSpecificChatRoomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
+        //var res = await signalr.JoinSpecificChatRoomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
     }
     private async void JoinChat()
     {
         //var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
-        var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
+        //var res = await signalr.JoinChatroomAsync(new UserConnection { UserName = model.UserName, ChatRoom = model.ChatRoom });
     }
 }

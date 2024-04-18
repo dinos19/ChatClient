@@ -2,6 +2,7 @@
 using ChatClient.Models;
 using System.Text.Json;
 using Blazored.LocalStorage;
+using System.Linq;
 
 namespace ChatClient.Services
 {
@@ -24,19 +25,30 @@ namespace ChatClient.Services
             {
                 CurrentState = JsonSerializer.Deserialize<UserState>(state) ?? new UserState();
             }
+            else
+                CurrentState = new UserState(new Account(), new Account(), new Account(), new UserConnection());
             NotifyStateChanged();
         }
 
         public async Task SetMyAccount(Account account)
         {
-            CurrentState.MyAccount = account;
-            await SaveStateAsync();
+            if (CurrentState.MyAccount.AccountId != account.AccountId)
+            {
+                CurrentState.MyAccount = account;
+                await SaveStateAsync();
+            }
         }
 
         public async Task AddAccounts(List<Account> accounts)
         {
-            CurrentState.Accounts.AddRange(accounts);
-            await SaveStateAsync();
+            foreach (var account in accounts)
+            {
+                if (!CurrentState.Accounts.Contains(account))
+                {
+                    CurrentState.Accounts.Add(account);
+                    await SaveStateAsync();
+                }
+            }
         }
 
         public async Task SetCurrentChatroom(Account chatroom)

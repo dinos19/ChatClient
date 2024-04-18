@@ -1,20 +1,22 @@
 ﻿using ChatClient.Models;
+using ChatClient.Util;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace ChatClient.Services.SignalR
+namespace ChatClient.Services.SignalR.Hubs
 {
-    public class SignalRWrapper : ISignalRWrapper
+    public class ChatHub : ISignalRWrapper
     {
-        public Microsoft.AspNetCore.SignalR.Client.HubConnection Connection;
+        public HubConnection Connection { get; set; }
 
-        public SignalRWrapper()
+        public ChatHub()
         {
             Connection = new HubConnectionBuilder()
-                .WithUrl("https://localhost:44312/chat").WithAutomaticReconnect()
+                //.WithUrl("https://localhost:44312/chat").WithAutomaticReconnect()
+                .WithUrl($"{Constants.ChatServerUrl}/chat").WithAutomaticReconnect()
                 .Build();
         }
 
-        public async Task ConnectSignalRAsync()
+        public async Task ConnectHubAsync()
         {
             try
             {
@@ -45,7 +47,7 @@ namespace ChatClient.Services.SignalR
             return res;
         }
 
-        public async Task<string> JoinSpecificChatRoomAsync(UserConnection connection)
+        public async Task<string> JoinSpecificChatRoomAsync(Account connection)
         {
             var res = string.Empty;
             try

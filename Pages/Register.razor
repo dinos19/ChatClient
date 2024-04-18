@@ -1,9 +1,7 @@
 ﻿@page "/"
 @inject NavigationManager NavigationManager
-@inject ISqliteWasmDbContextFactory<ClientDbContext> dbContext
-@inject UserStateService UserStateService
 @implements IDisposable
-
+@inject RegisterViewModel viewModel
 <h3>Register</h3>
 
 @using System.ComponentModel.DataAnnotations
@@ -12,153 +10,55 @@
 @using System.Text.Json
 @using System.Text
 @using ChatClient.Services
-@using SqliteWasmHelper
+@using ChatClient.ViewModel
 
-<EditForm Model="@account">
+<EditForm Model="@viewModel.Account">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
     <div class="form-group">
         <label for="name">Name</label>
-        <InputText id="username" class="form-control" @bind-Value="account.Name" />
-        <ValidationMessage For="@(() => account.Name)" />
+        <InputText id="username" class="form-control" @bind-Value="viewModel.Account.Name" />
+        <ValidationMessage For="@(() => viewModel.Account.Name)" />
     </div>
 
     <div class="form-group">
         <label for="email">Email</label>
-        <InputText id="email" class="form-control" @bind-Value="account.Email" InputType="InputType.Email" />
-        <ValidationMessage For="@(() => account.Email)" />
+        <InputText id="email" class="form-control" @bind-Value="viewModel.Account.Email" InputType="InputType.Email" />
+        <ValidationMessage For="@(() => viewModel.Account.Email)" />
     </div>
 
     <div class="form-group">
         <label for="password">Password</label>
-        <InputText @bind-Value="account.Password" type="password" class="form-control" />
-        <ValidationMessage For="@(() => account.Password)" />
+        <InputText @bind-Value="viewModel.Account.Password" type="password" class="form-control" />
+        <ValidationMessage For="@(() => viewModel.Account.Password)" />
     </div>
 
-    <button type="Register" class="btn btn-primary" @onclick="HandleRegistration">Register</button>
-    <button type="Login" class="btn btn-primary" @onclick="HandleLogin">Login</button>
+    <button type="Register" class="btn btn-primary" @onclick="(() => viewModel.HandleRegistration.Execute(null))">Register</button>
+    <button type="Login" class="btn btn-primary" @onclick="(() => viewModel.HandleLogin.Execute(null))">Login</button>
 
 </EditForm>
 
 @code {
-    private Account account = new Account();
-    private string response = string.Empty;
 
-    protected override void OnInitialized()
-    {
-    }
-    private async Task HandleRegistration()
-    {
-        await RegisterAccountAsync();
-        Console.WriteLine("Registration successful!");
-    }
-    private async Task HandleLogin()
-    {
-        await LoginAsync();
-    }
-    public async Task<List<Account>> RegisterAccountAsync()
-    {
-        List<Account> responseAccounts = new();
-        var httpClient = new HttpClient();
-        var accountJson = JsonSerializer.Serialize(account);
-        var content = new StringContent(accountJson, Encoding.UTF8, "application/json");
-
-        try
-        {
-            HttpResponseMessage response = await httpClient.PostAsync("https://localhost:44312/Account/Register", content);
-
-            if (response.IsSuccessStatusCode)
-            {
-                // Read the response body as a string
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                // Deserialize the response body string back to an Account object
-                responseAccounts = JsonSerializer.Deserialize<List<Account>>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                Console.WriteLine($"Account registered successfully. ID: {account?.AccountId}");
-                UserStateService.CurrentState.MyAccount = account;
-                UserStateService.CurrentState.MyAccount.AccountId = responseAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
-                NavigationManager.NavigateTo("/home", false);
-
-            }
-            else
-            {
-                Console.WriteLine($"Failed to register account. Status code: {response.StatusCode}");
-            }
-
-            return responseAccounts;
-        }
-        catch (HttpRequestException e)
-        {
-            Console.WriteLine($"Request error: {e.Message}");
-            return responseAccounts;
-        }
-    }
-
-    public async Task<LoginResponse> LoginAsync()
-    {
-        LoginResponse loginResponse = null;
-        var httpClient = new HttpClient();
-        var accountJson = JsonSerializer.Serialize(account);
-        var content = new StringContent(accountJson, Encoding.UTF8, "application/json");
-
-        try
-        {
-            HttpResponseMessage response = await httpClient.PostAsync("https://localhost:44312/Account/Login", content);
-
-            if (response.IsSuccessStatusCode)
-            {
-                // Read the response body as a string
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                // Deserialize the response body string back to an Account object
-                loginResponse = JsonSerializer.Deserialize<LoginResponse>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                if (loginResponse.IsLoggedIn)
-                {
-                    try
-                    {
-                        using var ctx = await dbContext.CreateDbContextAsync();
-                        await ctx.Accounts.AddRangeAsync(loginResponse.OnlineAccounts);
-                        await ctx.SaveChangesAsync();
-
-                    }
-                    catch (Exception ex)
-                    {
-                        //Console.WriteLine(ex);
-                    }
-                    await UserStateService.AddAccounts(loginResponse.OnlineAccounts);
-                    await UserStateService.SetMyAccount(account);
-                    UserStateService.CurrentState.MyAccount.AccountId = loginResponse.OnlineAccounts.Where(x => x.Email == account.Email && x.Name == account.Name).Select(x => x.AccountId).FirstOrDefault();
-
-                    Console.WriteLine($"Login successfull.  {JsonSerializer.Serialize(loginResponse)}");
-                    NavigationManager.NavigateTo("/home", false);
-                }
-                else
-                    Console.WriteLine("Login NOT successfull.");
-
-            }
-            else
-            {
-                Console.WriteLine($"Failed to Login. Status code: {response.StatusCode}");
-            }
-
-            return loginResponse;
-        }
-        catch (HttpRequestException e)
-        {
-            Console.WriteLine($"Request error: {e.Message}");
-            return loginResponse;
-        }
-    }
     protected override async Task OnInitializedAsync()
     {
-        await UserStateService.InitializeAsync();
-        UserStateService.OnChange += StateHasChanged;
+        //await viewModel.UserStateService.InitializeAsync();
+        //viewModel.UserStateService.OnChange += StateHasChanged;
+        viewModel.OnRegistrationSuccess += HandleRegistrationSuccess;
+        viewModel.OnLoginSuccess += HandleRegistrationSuccess;
+
     }
 
+    private void HandleRegistrationSuccess()
+    {
+        NavigationManager.NavigateTo("/home", false);
+    }
     public void Dispose()
     {
-        UserStateService.OnChange -= StateHasChanged;
+        //viewModel.UserStateService.OnChange -= StateHasChanged;
+        viewModel.OnRegistrationSuccess -= HandleRegistrationSuccess;
+        viewModel.OnLoginSuccess -= HandleRegistrationSuccess;
+
     }
 }

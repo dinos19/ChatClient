@@ -3,26 +3,33 @@
 @using ChatClient.Models
 @using ChatClient.Services
 @using ChatClient.Services.SignalR
+@using ChatClient.Services.SignalR.Hubs
 @using ChatClient.Services.ViewServices
+@using ChatClient.ViewModel
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
 @using SqliteWasmHelper
-@inject ChatService ChatService
-@inject UserStateService UserStateService
+@inject ChatViewModel viewModel
 @implements IDisposable
-@inject ISqliteWasmDbContextFactory<ClientDbContext> dbContext
+@inject IJSRuntime JSRuntime;
 
 <h3>Chat</h3>
 
-@if (Messages == null)
+<script>
+    function scrollToBottom(element) {
+        element.scrollTop = element.scrollHeight;
+    }
+</script>
+
+@if (viewModel.Messages == null)
 {
     <p>Loading...</p>
 }
 else
 {
     <div class="chat-wrapper">
-        <div class="message-list">
-            @foreach (var message in Messages)
+        <div class="message-list" @ref="messageListDiv">
+            @foreach (var message in viewModel.Messages)
             {
                 <div class="message">
                     <div class="message-header">
@@ -35,7 +42,10 @@ else
             }
         </div>
         <div class="chat-input">
-            <input type="text" @bind="newMessageText" placeholder="Type a message..." />
+            <button onclick="document.getElementById('flpicker').click()">Pick a file</button>
+            <InputFile id="flpicker" OnChange="@OnInputFileChange" hidden multiple />
+            <p>@viewModel.fileSize</p>
+            <input type="text" @bind="viewModel.newMessageText" placeholder="Type a message..." />
             <button @onclick="SendMessage">Send</button>
         </div>
     </div>
@@ -44,136 +54,78 @@ else
 @code {
     [Parameter]
     public string CurrentChatroomAccountId { get; set; }
-    public List<ChatMessage> Messages = new List<ChatMessage>();
-    private string newMessageText;
-    ISignalRWrapper signalr;
+    private ElementReference messageListDiv;
 
+    private async Task ScrollToBottom()
+    {
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", messageListDiv);
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles())
+        {
+            if (file.ContentType == "image/png")
+            {
+                var resizedImage = await file.RequestImageFileAsync("image/png", 400, 400);
+            }
+
+            using (var stream = file.OpenReadStream(file.Size))
+            {
+                viewModel.fileSize = (int)stream.Length;
+            }
+        }
+    }
     protected override async Task OnInitializedAsync()
     {
-        await UserStateService.InitializeAsync();
-        UserStateService.OnChange += StateHasChanged;
+        //await UserStateService.InitializeAsync();
+        viewModel.UserStateService.OnChange += StateHasChanged;
+        viewModel.onMessageReceived += MessageReceived;
 
-        signalr = new SignalRWrapper();
-        await signalr.ConnectSignalRAsync();
+        await viewModel.chatHandler.SetUpSignalR();
 
-        ((SignalRWrapper)signalr).Connection.On<string>("MessageReceived", (message) =>
-           {
-               var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
-               Messages.Add(msg);
-               Console.WriteLine(msg);
-               StateHasChanged();
+        await Task.Delay(500); // Give some time for everything to load
+        await ScrollToBottom();
 
-           });
-
-        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveSpecificMessage", (message) =>
-        {
-            var msg = JsonConvert.DeserializeObject<ChatMessage>(message);
-            Messages.Add(msg);
-            Console.WriteLine(msg);
-            StateHasChanged();
-
-        });
-
-        ((SignalRWrapper)signalr).Connection.On<string>("ReceiveMessage", async (message) =>
-        {
-            var msg = await HandleNewMessage(message);
-            if (msg.Action == ChatMessageAction.NOACTION)
-                Messages.Add(msg);
-            StateHasChanged();
-            Console.WriteLine(message);
-        });
-
-        await base.OnInitializedAsync();
     }
-    private async Task<ChatMessage> HandleNewMessage(string message)
+
+    private async void MessageReceived()
     {
-        ChatMessage chatMessage = null;
         try
         {
-            chatMessage = JsonConvert.DeserializeObject<ChatMessage>(message);
+            StateHasChanged();
+            await ScrollToBottom();
 
-            switch (chatMessage.Action)
-            {
-                case ChatMessageAction.NOACTION:
-                    try
-                    {
-                        using var ctx = await dbContext.CreateDbContextAsync();
-                        await ctx.ChatMessages.AddAsync(chatMessage);
-                        await ctx.SaveChangesAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        //Console.WriteLine(ex);
-                    }
-                    chatMessage.FromAccount = UserStateService.CurrentState.CurrentChatroom;
-                    chatMessage.ToAccount = UserStateService.CurrentState.MyAccount;
-
-                    break;
-                case ChatMessageAction.ANNOUNCEMENTS:
-                    break;
-
-                case ChatMessageAction.HELLO:
-                    UserStateService.CurrentState.CurrentChatConnection = await signalr.SayHello(UserStateService.CurrentState.MyAccount);
-                    await signalr.JoinSpecificChatRoomAsync(UserStateService.CurrentState.CurrentChatConnection);
-                    break;
-
-                default:
-                    break;
-            }
         }
         catch (Exception ex)
         {
-            if (message.Contains("joined", StringComparison.OrdinalIgnoreCase))
-                chatMessage = new ChatMessage
-                    {
-                        Action = ChatMessageAction.ANNOUNCEMENTS,
-                        Body = message,
-                        Type = ChatMessageType.TEXT,
-                        FromAccountId = 1,
-                        ToAccountId = 0,
 
-                    };
-            else
-                Console.WriteLine(ex);
         }
 
-        return chatMessage;
     }
-
     protected override async Task OnParametersSetAsync()
     {
         await base.OnParametersSetAsync();
 
-        Messages = await ChatService.LoadSingleChatroom(UserStateService.CurrentState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
+        viewModel.Messages = await viewModel.ChatService.LoadSingleChatroom(viewModel.UserStateService.CurrentState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
+        var hasUpdated = await viewModel.chatHandler.SendReadUpdates(viewModel.Messages);
 
-    }
-    private async void SendMessage()
-    {
+        StateHasChanged();
 
-        ChatMessage chatMessage = new ChatMessage
-            {
-                Action = ChatMessageAction.NOACTION,
-                Body = newMessageText,
-                FromAccountId = UserStateService.CurrentState.MyAccount.AccountId,
-                ToAccountId = UserStateService.CurrentState.CurrentChatroom.AccountId,
-                Type = ChatMessageType.TEXT
-            };
-        try
-        {
-            await signalr.SendMessage(chatMessage);
-            chatMessage.FromAccount = UserStateService.CurrentState.MyAccount;
-            chatMessage.ToAccount = UserStateService.CurrentState.CurrentChatroom;
-            Messages.Add(chatMessage);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
+        await Task.Yield();
+        await ScrollToBottom();
 
-        }
     }
 
     public void Dispose()
     {
-        UserStateService.OnChange -= StateHasChanged;
+        viewModel.UserStateService.OnChange -= StateHasChanged;
+    }
+    private async void SendMessage(MouseEventArgs e)
+    {
+
+        viewModel.chatHandler.SendMessage(viewModel.newMessageText);
+        //await ScrollToBottom();
+
     }
 }

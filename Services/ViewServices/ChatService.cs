@@ -27,6 +27,7 @@ namespace ChatClient.Services.ViewServices
                             .Include(x => x.ToAccount)
                             .Where(x => (x.FromAccountId == myAccountId && x.ToAccountId == otherAccountId)
                                      || (x.FromAccountId == otherAccountId && x.ToAccountId == myAccountId))
+                            .OrderBy(x => x.CreatedDate)
                             .ToListAsync();
             }
             catch (Exception ex)

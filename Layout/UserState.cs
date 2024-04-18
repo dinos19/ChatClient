@@ -10,6 +10,15 @@ namespace ChatClient.Layout
             Accounts = new List<Account>();
         }
 
+        public UserState(Account myAccount, Account currentChatroom, Account previousChatroom, UserConnection currentChatConnection)
+        {
+            Accounts = new List<Account>();
+            MyAccount = myAccount;
+            CurrentChatroom = currentChatroom;
+            PreviousChatroom = previousChatroom;
+            CurrentChatConnection = currentChatConnection;
+        }
+
         public List<Account> Accounts { get; set; }
         public Account MyAccount { get; set; }
         public Account CurrentChatroom { get; set; }

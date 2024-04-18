@@ -1,4 +1,6 @@
-﻿@using ChatClient.Services
+﻿@using ChatClient.Handlers
+@using ChatClient.Services
+@using ChatClient.Services.SignalR.Hubs
 @inherits LayoutComponentBase
 @inject UserStateService UserStateService
 @implements IDisposable
@@ -22,7 +24,6 @@
 @code {
     public MainLayout()
     {
-
     }
     protected override async Task OnInitializedAsync()
     {
