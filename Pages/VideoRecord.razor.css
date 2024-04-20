@@ -1,0 +1,29 @@
+﻿/* Scoped CSS: VideoRecord.razor.css or Global CSS: site.css */
+.custom-modal-style .blazored-modal {
+    display: flex;
+    flex-direction: column;
+    max-width: 600px;
+    width: auto;
+    height: auto;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1050; /* Make sure it's above other content */
+}
+
+/* You might also need to adjust the backdrop to cover the whole screen */
+.custom-modal-style .blazored-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6); /* Adjust backdrop color and opacity as needed */
+    z-index: 1040; /* Under the modal, above everything else */
+}
+
+.VideoRecorderElement {
+    width: auto;
+    height: auto;
+}

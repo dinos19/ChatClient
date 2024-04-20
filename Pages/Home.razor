@@ -1,7 +1,5 @@
 ﻿@page "/home"
-@using ChatClient.Services.SignalR.Hubs
-@inject NavigationManager NavigationManager
-@inject SyncHub SyncHub
+
 
 <PageTitle>Home</PageTitle>
 
@@ -9,18 +7,10 @@
 
 Welcome to your new app.
 
+
+<h1>LOADED VIDEO</h1>
+
+
 @code {
-    // Use OnInitialized or OnInitializedAsync for initialization logic
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-        //NavigationManager.NavigateTo("/register", true);
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        await SyncHub.ConnectHubAsync();
-
-        base.OnInitializedAsync();
-    }
+    
 }

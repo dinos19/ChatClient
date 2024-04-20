@@ -12,6 +12,8 @@
 @inject ChatViewModel viewModel
 @implements IDisposable
 @inject IJSRuntime JSRuntime;
+@using Blazored.Modal.Services
+@inject IModalService Modal
 
 <h3>Chat</h3>
 
@@ -41,20 +43,59 @@ else
                 </div>
             }
         </div>
+
         <div class="chat-input">
-            <button onclick="document.getElementById('flpicker').click()">Pick a file</button>
-            <InputFile id="flpicker" OnChange="@OnInputFileChange" hidden multiple />
-            <p>@viewModel.fileSize</p>
-            <input type="text" @bind="viewModel.newMessageText" placeholder="Type a message..." />
-            <button @onclick="SendMessage">Send</button>
+            <div class="action-buttons">
+
+                <button onclick="document.getElementById('flpicker').click()">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <InputFile id="flpicker" OnChange="@OnInputFileChange" hidden multiple />
+
+                <!-- Replace these with actual icons later -->
+                <button @onclick="StartVideoRecording" title="Open video recorder">
+                    <i class="fas fa-video"></i>
+
+                </button>
+                <button @onclick="StartAudioRecording" title="Record Audio">
+                    <i class="fas fa-microphone"></i>
+                </button>
+
+            </div>
+            <input type="text" @bind="viewModel.newMessageText" placeholder="Jot something down..." />
+            <button @onclick="SendMessage" title="Send message">
+                <i class="fas fa-paper-plane"></i>
+            </button>
         </div>
     </div>
 }
-
 @code {
     [Parameter]
     public string CurrentChatroomAccountId { get; set; }
     private ElementReference messageListDiv;
+    private void StartVideoRecording()
+    {
+        var options = new ModalOptions
+            {
+                Position = ModalPosition.Middle, // This centers the modal in the viewport
+                DisableBackgroundCancel = true,  // Optional: Disables closing the modal by clicking the background
+                AnimationType = ModalAnimationType.FadeInOut // Optional: Adds an animation effect when showing the modal
+            };
+
+        var modalReference = Modal.Show<VideoRecord>("", options);
+    }
+
+    private void StartAudioRecording()
+    {
+        var options = new ModalOptions
+            {
+                Position = ModalPosition.Middle, 
+                DisableBackgroundCancel = true,  
+                AnimationType = ModalAnimationType.FadeInOut 
+            };
+
+        var modalReference = Modal.Show<VideoRecord>("", options);
+    }
 
     private async Task ScrollToBottom()
     {

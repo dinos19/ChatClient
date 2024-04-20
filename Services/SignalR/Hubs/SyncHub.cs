@@ -23,7 +23,8 @@ namespace ChatClient.Services.SignalR.Hubs
         {
             try
             {
-                await Connection.StartAsync();
+                if(Connection.State != HubConnectionState.Connected)
+                    await Connection.StartAsync();
 
                 //fetch sync object from db
                 LatestUpdates latestUpdates = await SyncHandler.GetLatestUpdates();

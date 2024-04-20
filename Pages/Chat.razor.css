@@ -27,21 +27,32 @@
 }
 
 .chat-input {
-    flex: 1 0 20%; /* 20% of the view height */
     padding: 10px;
     background-color: #f7f7f7;
     display: flex;
-    flex-direction: row;
-    align-items: flex-end;
+    align-items: center; /* Vertically center the items */
+    border-top: 1px solid #ccc; /* A subtle top border as in your example */
 }
+
+    .chat-input .action-buttons {
+        display: flex; /* Aligns buttons in a row */
+        gap: 10px; /* Adds space between the buttons */
+    }
+
+        .chat-input .action-buttons button {
+            background: none;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 18px; /* Adjust icon size as needed */
+        }
 
     .chat-input input {
         flex-grow: 1;
-        margin-right: 10px;
+        margin: 0 10px; /* Spacing on left and right */
         padding: 10px;
         border: 1px solid #ccc;
         border-radius: 4px;
-        height : 10vh
     }
 
     .chat-input button {
@@ -52,3 +63,18 @@
         color: white;
         cursor: pointer;
     }
+
+
+/* FontAwesome icon styling */
+.fas {
+    font-size: 24px; /* Change the size as needed */
+    color: #555; /* Change the color as needed */
+}
+
+/* Button styling */
+button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    /* Additional button styling here */
+}

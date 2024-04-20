@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.EntityFrameworkCore;
 using SqliteWasmHelper;
 using ChatClient.Handlers;
+using Blazored.Modal;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -28,6 +29,7 @@ builder.Services.AddSqliteWasmDbContextFactory<ClientDbContext>(options => optio
 //ViewModels
 builder.Services.AddScoped<RegisterViewModel>();
 builder.Services.AddScoped<ChatViewModel>();
+builder.Services.AddScoped<VideoRecordViewModel>();
 
 //Services
 builder.Services.AddSingleton<ChatService>();
@@ -52,5 +54,8 @@ builder.Services.AddScoped<UserState>();
 //hubs
 builder.Services.AddScoped<ChatHub>();
 builder.Services.AddScoped<SyncHub>();
+
+//utils and libs
+builder.Services.AddBlazoredModal(); //for modals
 
 await builder.Build().RunAsync();
