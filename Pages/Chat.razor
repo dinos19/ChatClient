@@ -5,6 +5,7 @@
 @using ChatClient.Services.SignalR
 @using ChatClient.Services.SignalR.Hubs
 @using ChatClient.Services.ViewServices
+@using ChatClient.Util
 @using ChatClient.ViewModel
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
@@ -13,6 +14,7 @@
 @implements IDisposable
 @inject IJSRuntime JSRuntime;
 @using Blazored.Modal.Services
+@using System.Net.Http.Headers
 @inject IModalService Modal
 
 <h3>Chat</h3>
@@ -89,9 +91,9 @@ else
     {
         var options = new ModalOptions
             {
-                Position = ModalPosition.Middle, 
-                DisableBackgroundCancel = true,  
-                AnimationType = ModalAnimationType.FadeInOut 
+                Position = ModalPosition.Middle,
+                DisableBackgroundCancel = true,
+                AnimationType = ModalAnimationType.FadeInOut
             };
 
         var modalReference = Modal.Show<VideoRecord>("", options);
@@ -101,20 +103,43 @@ else
     {
         await JSRuntime.InvokeVoidAsync("scrollToBottom", messageListDiv);
     }
+    private List<string> fileNames = new();
+    private List<UploadResult> uploadResults = new();
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
     {
+        using var content = new MultipartFormDataContent();
+
         foreach (var file in e.GetMultipleFiles())
         {
-            if (file.ContentType == "image/png")
-            {
-                var resizedImage = await file.RequestImageFileAsync("image/png", 400, 400);
-            }
+
+                //var resizedImage = await file.RequestImageFileAsync("image/png", 400, 400);
+
+                var fileContent = new StreamContent(file.OpenReadStream(long.MaxValue));
+
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+
+                fileNames.Add(file.Name);
+
+                content.Add(
+                    content: fileContent,
+                    name: "\"files\"",
+                    fileName: file.Name);
 
             using (var stream = file.OpenReadStream(file.Size))
             {
                 viewModel.fileSize = (int)stream.Length;
             }
+        }
+        var httpClient = new HttpClient();
+
+        HttpResponseMessage response = await httpClient.PostAsync($"{Constants.ChatServerUrl}/File/UploadFile", content);
+
+        var newUploadResults = await response.Content.ReadFromJsonAsync<List<UploadResult>>();
+
+        if (newUploadResults is not null)
+        {
+            uploadResults = uploadResults.Concat(newUploadResults).ToList();
         }
     }
     protected override async Task OnInitializedAsync()

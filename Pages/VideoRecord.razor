@@ -1,22 +1,22 @@
 ﻿@using Blazored.Modal
 @using ChatClient.ViewModel
-@inject VideoRecordViewModel ViewModel
+@inject VideoRecordViewModel viewModel
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
 <div class="custom-modal-style">
 
-     <video id="videoElement" controls autoplay class="VideoRecorderElement"></video>
-    <button @onclick="StartRecording">Start Recording</button>
-    <button @onclick="PauseRecording">Pause/Resume Recording</button>
-    <button @onclick="StopRecording">Stop Recording</button>
+    <video id="videoElement" controls autoplay class="VideoRecorderElement"></video>
+    <button @onclick="(() => viewModel.StartRecording.Execute(null))">Start Recording</button>
+    <button @onclick="(() => viewModel.PauseRecording.Execute(null))">Pause/Resume Recording</button>
+    <button @onclick="(() => viewModel.StopRecording.Execute(null))">Stop Recording</button>
 
     <h1>LOADED VIDEO</h1>
 
-    @if (!string.IsNullOrWhiteSpace(videoSrc))
+    @if (!string.IsNullOrWhiteSpace(viewModel.videoSrc))
     {
         <video controls autoplay>
-            <source src="@videoSrc" type="video/webm">
+            <source src="@viewModel.videoSrc" type="video/webm">
             Your browser does not support the video tag.
         </video>
     }
@@ -24,104 +24,15 @@
     {
         <p>No video to display</p>
     }
-    <button @onclick="StopRecordingAndLoadVideo">Record and Load Video</button>
+    <button @onclick="(() => viewModel.StopRecordingAndLoadVideo.Execute(null))">Record and Load Video</button>
 
 </div>
 @code {
     [CascadingParameter]
     BlazoredModalInstance BlazoredModal { get; set; }
 
-    private async void CloseModal()
-    {
-        await BlazoredModal.CloseAsync();
-    }
-
-    private string videoSrc;
-
     private IJSObjectReference _module;
 
-    private async Task StartRecording()
-    {
-        try
-        {
-            await _module.InvokeVoidAsync("startRecording");
-
-        }
-        catch (Exception ex)
-        {
-
-        }
-    }
-
-    private async Task PauseRecording()
-    {
-        try
-        {
-            await _module.InvokeVoidAsync("toggleRecording");
-
-        }
-        catch (Exception ex)
-        {
-
-        }
-    }
-
-    private async Task StopRecording()
-    {
-        try
-        {
-            byte[] videoData = await _module.InvokeAsync<byte[]>("stopRecording");
-            if (videoData != null && videoData.Length > 0)
-            {
-                // Now you have the video data as a byte array in Blazor and you can process or send it to the server
-                Console.WriteLine("Video data received with length: " + videoData.Length);
-                // Optional: Send the data to a server method or process it further
-            }
-            else
-            {
-                Console.WriteLine("No video data received or recording was not started");
-            }
-        }
-        catch (Exception ex)
-        {
-
-        }
-
-    }
-
-    private async Task StopRecordingAndLoadVideo()
-    {
-        try
-        {
-            byte[] videoData = await _module.InvokeAsync<byte[]>("stopRecording");
-            if (videoData != null && videoData.Length > 0)
-            {
-                videoSrc = ConvertToBase64(videoData);
-            }
-            else
-            {
-                Console.WriteLine("No video data received or recording was not started");
-            }
-        }
-        catch (Exception ex)
-        {
-
-        }
-
-    }
-    public string ConvertToBase64(byte[] videoBytes)
-    {
-        return $"data:video/webm;base64,{Convert.ToBase64String(videoBytes)}";
-    }
-    public async ValueTask DisposeAsync()
-    {
-        if (_module != null)
-        {
-            await _module.DisposeAsync();
-        }
-    }
-
-    // Use OnInitialized or OnInitializedAsync for initialization logic
     protected override void OnInitialized()
     {
         base.OnInitialized();
@@ -130,9 +41,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        //await SyncHub.ConnectHubAsync();
         _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/VideoRecordScripts.js");
-
-        base.OnInitializedAsync();
+        await viewModel.SetUpAsync(BlazoredModal);
+        await base.OnInitializedAsync();
     }
+
+    private async void CloseModal()
+    {
+        await BlazoredModal.CloseAsync();
+    }
+
 }
