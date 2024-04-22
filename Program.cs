@@ -29,7 +29,7 @@ builder.Services.AddSqliteWasmDbContextFactory<ClientDbContext>(options => optio
 //ViewModels
 builder.Services.AddScoped<RegisterViewModel>();
 builder.Services.AddScoped<ChatViewModel>();
-builder.Services.AddScoped<VideoRecordViewModel>();
+builder.Services.AddSingleton<VideoRecordViewModel>();
 
 //Services
 builder.Services.AddSingleton<ChatService>();
@@ -40,6 +40,7 @@ builder.Services.AddTransient<AccountRepository>();
 builder.Services.AddTransient<ChatMessageRepository>();
 builder.Services.AddTransient<LatestUpdatesRepository>();
 builder.Services.AddTransient<UserConnectionRepository>();
+builder.Services.AddTransient<ChatFileRepository>();
 builder.Services.AddTransient<IRepositoryWrapper, RepositoryWrapper>();
 
 //handlers

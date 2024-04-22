@@ -13,7 +13,7 @@ namespace ChatClient.ViewModel
 {
     public class ChatViewModel : BaseViewModel
     {
-        public event Action onMessageReceived;
+        public event Action<ChatMessage> onMessageReceived;
 
         public ChatService ChatService { get; set; }
         public UserStateService UserStateService { get; set; }
@@ -55,12 +55,23 @@ namespace ChatClient.ViewModel
             chatHandler.OnMessageReceived += MessageReceived;
         }
 
-        private void MessageReceived(ChatMessage chatMessage)
+        private async void MessageReceived(ChatMessage chatMessage)
         {
+            if (chatMessage.Type != ChatMessageType.TEXT)
+            {
+                var file = await chatHandler.GetFile(chatMessage);
+                chatMessage.ChatFile = file;
+            }
+
             Messages.Add(chatMessage);
             newMessageText = "";
 
-            onMessageReceived?.Invoke();
+            onMessageReceived?.Invoke(chatMessage);
+        }
+
+        public async Task SendMessageAsync(UploadResult uploadResult, ChatMessageType chatMessageType)
+        {
+            await chatHandler.SendMessage(uploadResult, chatMessageType);
         }
     }
 }

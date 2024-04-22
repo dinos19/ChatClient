@@ -1,4 +1,5 @@
 ﻿@using Blazored.Modal
+@using ChatClient.Models
 @using ChatClient.ViewModel
 @inject VideoRecordViewModel viewModel
 @inject NavigationManager NavigationManager
@@ -31,6 +32,9 @@
     [CascadingParameter]
     BlazoredModalInstance BlazoredModal { get; set; }
 
+    [Parameter]
+    public EventCallback<UploadResult> OnRecordingCompleted { get; set; }
+
     private IJSObjectReference _module;
 
     protected override void OnInitialized()
@@ -43,10 +47,16 @@
     {
         _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/VideoRecordScripts.js");
         await viewModel.SetUpAsync(BlazoredModal);
+        viewModel.OnRecordingCompleted += VideoRecordCompleted;
         await base.OnInitializedAsync();
     }
-
-    private async void CloseModal()
+    private async void VideoRecordCompleted(UploadResult uploadResults)
+    {
+        await OnRecordingCompleted.InvokeAsync(uploadResults);
+        viewModel.OnRecordingCompleted -= VideoRecordCompleted;
+        await CloseModal();
+    }
+    private async Task CloseModal()
     {
         await BlazoredModal.CloseAsync();
     }

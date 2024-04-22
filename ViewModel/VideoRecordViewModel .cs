@@ -11,6 +11,9 @@ using ChatClient.Handlers;
 using Microsoft.JSInterop;
 using Blazored.Modal;
 using System.Security.Principal;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using ChatClient.Infrastructure.Repositories.Abstraction;
 
 namespace ChatClient.ViewModel
 {
@@ -24,6 +27,8 @@ namespace ChatClient.ViewModel
             set { _videoSrc = value; OnPropertyChanged(); }
         }
 
+        public Action<UploadResult> OnRecordingCompleted { get; set; }
+
         public ICommand StartRecording { get; set; }
         public ICommand PauseRecording { get; set; }
         public ICommand StopRecording { get; set; }
@@ -33,14 +38,16 @@ namespace ChatClient.ViewModel
 
         private BlazoredModalInstance BlazoredModal;
         public IJSRuntime JSRuntime { get; set; }
+        public IRepositoryWrapper Repos { get; set; }
 
-        public VideoRecordViewModel(IJSRuntime jSRuntime)
+        public VideoRecordViewModel(IJSRuntime jSRuntime, IRepositoryWrapper repos)
         {
             JSRuntime = jSRuntime;
             StartRecording = new RelayCommand(async () => await StartRecordingAsync());
             PauseRecording = new RelayCommand(async () => await PauseRecordingAsync());
             StopRecording = new RelayCommand(async () => await StopRecordingAsync());
             StopRecordingAndLoadVideo = new RelayCommand(async () => await StopRecordingAndLoadVideoAsync());
+            Repos = repos;
         }
 
         public async Task SetUpAsync(BlazoredModalInstance blazoredModal)
@@ -71,16 +78,55 @@ namespace ChatClient.ViewModel
             }
         }
 
+        private List<string> fileNames = new();
+        private List<UploadResult> uploadResults = new();
+
         public async Task StopRecordingAsync()
         {
+            UploadResult uploadResult = default(UploadResult);
+
             try
             {
-                byte[] videoData = await _module.InvokeAsync<byte[]>("stopRecording");
-                if (videoData != null && videoData.Length > 0)
+                var result = await _module.InvokeAsync<RecordingResult>("stopRecording");
+                if (!string.IsNullOrEmpty(result.Base64Content) && result.Base64Content.Length > 0)
                 {
-                    // Now you have the video data as a byte array in Blazor and you can process or send it to the server
-                    Console.WriteLine("Video data received with length: " + videoData.Length);
-                    // Optional: Send the data to a server method or process it further
+                    var bytes = Convert.FromBase64String(result.Base64Content);
+                    using var content = new MultipartFormDataContent();
+
+                    var stream = new MemoryStream(bytes);
+                    var fileContent = new StreamContent(stream);
+
+                    // Extract only the base MIME type
+                    string baseMimeType = result.MimeType.Split(';')[0]; // Split and take the first part before any ';'
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue(baseMimeType);
+                    var filename = Guid.NewGuid().ToString() + "." + baseMimeType.Split('/')[1]; // Append proper file extension
+
+                    content.Add(
+                        content: fileContent,
+                        name: "\"files\"",
+                        fileName: filename);
+
+                    var httpClient = new HttpClient();
+
+                    HttpResponseMessage response = await httpClient.PostAsync($"{Constants.ChatServerUrl}/File/UploadFile", content);
+                    var newUploadResults = await response.Content.ReadFromJsonAsync<List<UploadResult>>();
+
+                    if (newUploadResults != null)
+                    {
+                        uploadResults = uploadResults.Concat(newUploadResults).ToList();
+                    }
+                    uploadResult = newUploadResults[newUploadResults.Count - 1];
+                    //store file
+                    ChatFile chatFile = new ChatFile
+                    {
+                        FileContentArray = bytes,
+                        UploadResultContentType = uploadResult.ContentType,
+                        UploadResultFileName = uploadResult.FileName,
+                        UploadResultId = uploadResult.Id,
+                        UploadResultStoredFileName = uploadResult.StoredFileName,
+                    };
+                    await Repos.ChatFile.CreateAsync(chatFile);
+                    //await Task.Delay(2000);
                 }
                 else
                 {
@@ -89,6 +135,12 @@ namespace ChatClient.ViewModel
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+            finally
+            {
+                if (uploadResult is not null)
+                    OnRecordingCompleted.Invoke(uploadResult);
             }
         }
 

@@ -20,6 +20,20 @@ namespace ChatClient.Infrastructure.Repositories
             }
         }
 
+        private ChatFileRepository _chatFile;
+
+        public ChatFileRepository ChatFile
+        {
+            get
+            {
+                if (_chatFile == null)
+                {
+                    _chatFile = new ChatFileRepository(dbContext);
+                }
+                return _chatFile;
+            }
+        }
+
         private LatestUpdatesRepository _latestUpdates;
 
         public LatestUpdatesRepository LatestUpdates

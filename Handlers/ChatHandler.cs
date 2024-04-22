@@ -133,6 +133,58 @@ namespace ChatClient.Handlers
             }
         }
 
+        public async Task SendMessage(UploadResult uploadResult, ChatMessageType type)
+        {
+            ChatMessage chatMessage = new ChatMessage
+            {
+                Action = ChatMessageAction.NOACTION,
+                Body = JsonConvert.SerializeObject(uploadResult),
+                FromAccountId = UserStateService.CurrentState.MyAccount.AccountId,
+                ToAccountId = UserStateService.CurrentState.CurrentChatroom.AccountId,
+                Type = type,
+                Status = ChatMessageStatus.INIT,
+                CreatedDate = DateTime.Now
+            };
+
+            try
+            {
+                var msg = await signalr.SendMessage(chatMessage);
+
+                await Repos.ChatMessage.CreateAsync(msg);
+
+                msg.FromAccount = UserStateService.CurrentState.MyAccount;
+                msg.ToAccount = UserStateService.CurrentState.CurrentChatroom;
+
+                OnMessageReceived?.Invoke(msg);
+            }
+            catch (Exception ex)
+            {
+            }
+        }
+
+        public async Task<ChatFile> GetFile(ChatMessage message)
+        {
+            ChatFile chatFile = default(ChatFile);
+
+            try
+            {
+                var files = await Repos.ChatFile.FindAllAsync();
+                foreach (var file in files)
+                {
+                    Console.WriteLine($"STORED FILE : UploadResultFileName {file.UploadResultFileName} , UploadResultStoredFileName {file.UploadResultStoredFileName}");
+                }
+                UploadResult uploadResult = JsonConvert.DeserializeObject<UploadResult>(message.Body);
+                var chatFiles = await Repos.ChatFile.FindByConditionAsync(x => uploadResult.Id == x.UploadResultId);
+                chatFile = chatFiles.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+
+            return chatFile;
+        }
+
         public async Task SetUpSignalR()
         {
             await signalr.ConnectHubAsync();

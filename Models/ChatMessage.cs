@@ -30,7 +30,6 @@ namespace ChatClient.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
-
         public int ChatMessageId { get; set; }
 
         public ChatMessageAction Action { get; set; }
@@ -50,5 +49,8 @@ namespace ChatClient.Models
         public DateTime CreatedDate { get; set; }
         public DateTime UpdatedDate { get; set; }
         public DateTime ReadDate { get; set; }
+
+        [NotMapped]
+        public ChatFile ChatFile { get; set; }
     }
 }

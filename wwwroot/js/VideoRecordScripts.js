@@ -5,10 +5,8 @@ let stream;
 let isRecording = false;
 function getSupportedMimeTypes() {
     const types = [
-        'video/webm; codecs=vp9', // Preferably high-quality codec
-        'video/webm; codecs=vp8', // Commonly supported in many browsers
-        'video/webm',             // Fallback to default WebM
-        'video/mp4'               // Not typically supported but included for completeness
+        'video/webm', // Use the base type without codec information
+        'video/mp4'   // Ensure this is supported if used
     ];
 
     return types.filter(type => MediaRecorder.isTypeSupported(type));
@@ -53,14 +51,24 @@ export async function stopRecording() {
     mediaRecorder.stop();
     mediaRecorder.stream.getTracks().forEach(track => track.stop());
 
-    const blob = new Blob(recordedBlobs, { type: getSupportedMimeTypes()[0] });
+    const mimeType = getSupportedMimeTypes()[0]; // Get the MIME type
+    const blob = new Blob(recordedBlobs, { type: mimeType });
 
     return new Promise((resolve, reject) => {
         let reader = new FileReader();
         reader.onload = () => {
             const arrayBuffer = reader.result;
             const byteArray = new Uint8Array(arrayBuffer);
-            resolve(byteArray);
+            const chunks = [];
+            const chunkSize = 5120; // A size small enough to avoid stack overflow
+
+            for (let i = 0; i < byteArray.length; i += chunkSize) {
+                const chunk = byteArray.subarray(i, i + chunkSize);
+                chunks.push(String.fromCharCode.apply(null, chunk));
+            }
+
+            const base64String = btoa(chunks.join(''));
+            resolve({ Base64Content: base64String, mimeType: mimeType });
         };
         reader.onerror = (err) => reject(err);
         reader.readAsArrayBuffer(blob);

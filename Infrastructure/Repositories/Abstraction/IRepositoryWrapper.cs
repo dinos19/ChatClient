@@ -8,6 +8,7 @@ namespace ChatClient.Infrastructure.Repositories.Abstraction
         ChatMessageRepository ChatMessage { get; }
         UserConnectionRepository UserConnection { get; }
         LatestUpdatesRepository LatestUpdates { get; }
+        ChatFileRepository ChatFile { get; }
 
         void Save();
     }

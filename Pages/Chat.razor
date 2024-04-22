@@ -40,6 +40,14 @@ else
                         <span class="message-sender">@message.FromAccount.Name</span>
                     </div>
                     <div class="message-content">
+                        @if (message.Type == ChatMessageType.VIDEO)
+                        {
+                            <video @key="message.ChatMessageId" @ref="videoElements[message.ChatMessageId]" controls></video>
+
+                            //LoadVideo(message); // Call this method appropriately
+
+                        }
+                        else
                         @message.Body
                     </div>
                 </div>
@@ -75,6 +83,29 @@ else
     [Parameter]
     public string CurrentChatroomAccountId { get; set; }
     private ElementReference messageListDiv;
+    private Dictionary<int, ElementReference> videoElements = new();
+
+    //private ElementReference videoElement;
+
+    private async Task LoadVideo(ChatMessage message)
+    {
+        if (videoElements.TryGetValue(message.ChatMessageId, out var videoElement))
+        {
+            try
+            {
+                    var chatFile = await viewModel.chatHandler.GetFile(message);
+                    if (chatFile is null) return;
+                    message.ChatFile = chatFile;
+                    await JSRuntime.InvokeVoidAsync("setVideoSource", videoElement, chatFile.FileContentArray, chatFile.UploadResultContentType ?? "video/mp4");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error loading video: {ex.Message}");
+            }
+        }
+    }
+    private IModalReference modalReference;
+
     private void StartVideoRecording()
     {
         var options = new ModalOptions
@@ -83,10 +114,19 @@ else
                 DisableBackgroundCancel = true,  // Optional: Disables closing the modal by clicking the background
                 AnimationType = ModalAnimationType.FadeInOut // Optional: Adds an animation effect when showing the modal
             };
+        ModalParameters parameters = new ModalParameters();
+        parameters.Add("OnRecordingCompleted", EventCallback.Factory.Create<UploadResult>(this, HandleRecordingCompleted));
 
-        var modalReference = Modal.Show<VideoRecord>("", options);
+        modalReference = Modal.Show<VideoRecord>("", parameters, options);
+
     }
+    private async Task HandleRecordingCompleted(UploadResult result)
+    {
 
+        await viewModel.SendMessageAsync(result, ChatMessageType.VIDEO);
+        if (modalReference != null)
+            modalReference = null;
+    }
     private void StartAudioRecording()
     {
         var options = new ModalOptions
@@ -113,18 +153,18 @@ else
         foreach (var file in e.GetMultipleFiles())
         {
 
-                //var resizedImage = await file.RequestImageFileAsync("image/png", 400, 400);
+            //var resizedImage = await file.RequestImageFileAsync("image/png", 400, 400);
 
-                var fileContent = new StreamContent(file.OpenReadStream(long.MaxValue));
+            var fileContent = new StreamContent(file.OpenReadStream(long.MaxValue));
 
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
 
-                fileNames.Add(file.Name);
+            fileNames.Add(file.Name);
 
-                content.Add(
-                    content: fileContent,
-                    name: "\"files\"",
-                    fileName: file.Name);
+            content.Add(
+                content: fileContent,
+                name: "\"files\"",
+                fileName: file.Name);
 
             using (var stream = file.OpenReadStream(file.Size))
             {
@@ -141,6 +181,11 @@ else
         {
             uploadResults = uploadResults.Concat(newUploadResults).ToList();
         }
+        foreach (var uploadResult in newUploadResults)
+        {
+            await viewModel.SendMessageAsync(uploadResult, ChatMessageType.IMAGE);
+
+        }
     }
     protected override async Task OnInitializedAsync()
     {
@@ -150,16 +195,21 @@ else
 
         await viewModel.chatHandler.SetUpSignalR();
 
-        await Task.Delay(500); // Give some time for everything to load
+        //await Task.Delay(500); // Give some time for everything to load
         await ScrollToBottom();
 
     }
 
-    private async void MessageReceived()
+    private async void MessageReceived(ChatMessage chatMessage)
     {
         try
         {
+
             StateHasChanged();
+            if (chatMessage.Type == ChatMessageType.VIDEO)
+            {
+                await LoadVideo(chatMessage);
+            }
             await ScrollToBottom();
 
         }
@@ -172,9 +222,17 @@ else
     protected override async Task OnParametersSetAsync()
     {
         await base.OnParametersSetAsync();
-
-        viewModel.Messages = await viewModel.ChatService.LoadSingleChatroom(viewModel.UserStateService.CurrentState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
+        var loadedMessages = await viewModel.ChatService.LoadSingleChatroom(viewModel.UserStateService.CurrentState.MyAccount.AccountId, int.Parse(CurrentChatroomAccountId));
+        viewModel.Messages = loadedMessages;
         var hasUpdated = await viewModel.chatHandler.SendReadUpdates(viewModel.Messages);
+
+        foreach (var chatMessage in loadedMessages)
+        {
+            if (chatMessage.Type == ChatMessageType.VIDEO)
+            {
+                await LoadVideo(chatMessage);
+            }
+        }
 
         StateHasChanged();
 
